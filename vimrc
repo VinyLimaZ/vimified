@@ -22,7 +22,7 @@ if filereadable(s:beforerc)
 endif
 " }}}
 
-let mapleader = ","
+let mapleader = " "
 let maplocalleader = "\\"
 
 " Local vimrc configuration {{{
@@ -37,8 +37,7 @@ endif
 " which package you would like to include
 if ! exists('g:vimified_packages')
     let g:vimified_packages = ['general', 'fancy', 'os', 'coding', 'python', 'ruby', 'html', 'css', 'js', 'clojure', 'haskell', 'color']
-endif
-" }}}
+endif " }}}
 
 " VUNDLE {{{
 let s:bundle_path=s:dotvim."/bundle/"
@@ -59,10 +58,32 @@ endif
 
 " _. General {{{
 if count(g:vimified_packages, 'general')
-    Bundle 'editorconfig/editorconfig-vim'
+	if filereadable(expand("./bin/rspec"))
+	  let g:rspec_command = "VtrSendCommandToRunner! ./bin/rspec {spec}"
+	else
+	  let g:rspec_command = "VtrSendCommandToRunner! rspec {spec}"
+	endif
+	"automatically rebalance windows on vim resize
+	autocmd VimResized * :wincmd =
 
+    Bundle 'editorconfig/editorconfig-vim'
     Bundle 'rking/ag.vim'
     nnoremap <leader>a :Ag -i<space>
+	" Use The Silver Searcher https://github.com/ggreer/the_silver_searcher
+	if executable('ag')
+	  " Use Ag over Grep
+	  set grepprg=ag\ --nogroup\ --nocolor
+
+	  " Use ag in CtrlP for listing files. Lightning fast and respects .gitignore
+	  " let g:ctrlp_user_command = 'ag %s -l --nocolor --hidden -g ""'
+	  let g:ctrlp_user_command =
+		  \ 'ag %s --files-with-matches -g "" --ignore "\.git$\|\.hg$\|\.svn$"'
+
+	  " ag is fast enough that CtrlP doesn't need to cache
+	  let g:ctrlp_use_caching = 0
+	endif
+	" Default to filename searches
+	let g:ctrlp_by_filename = 1
 
     Bundle 'matthias-guenther/hammer.vim'
     nmap <leader>p :Hammer<cr>
@@ -75,6 +96,9 @@ if count(g:vimified_packages, 'general')
     Bundle 'tpope/vim-unimpaired'
     Bundle 'maxbrunsfeld/vim-yankstack'
     Bundle 'tpope/vim-eunuch'
+    Bundle 'christoomey/vim-tmux-navigator'
+    Bundle 'pbrisbin/vim-mkdir'
+
 
     Bundle 'scrooloose/nerdtree'
     " Disable the scrollbars (NERDTree)
@@ -104,6 +128,34 @@ if count(g:vimified_packages, 'general')
     nmap <leader>be :EasyBufferToggle<cr>
 
     Bundle 'terryma/vim-multiple-cursors'
+augroup vimrcEx
+  autocmd!
+
+  " When editing a file, always jump to the last known cursor position.
+  " Don't do it for commit messages, when the position is invalid, or when
+  " inside an event handler (happens when dropping a file on gvim).
+  autocmd BufReadPost *
+    \ if &ft != 'gitcommit' && line("'\"") > 0 && line("'\"") <= line("$") |
+    \   exe "normal g`\"" |
+    \ endif
+
+  " Set syntax highlighting for specific file types
+  autocmd BufRead,BufNewFile Appraisals set filetype=ruby
+  autocmd BufRead,BufNewFile *.md set filetype=markdown
+
+  " Enable spellchecking for Markdown
+  autocmd FileType markdown setlocal spell
+
+  " Automatically wrap at 80 characters for Markdown
+  autocmd BufRead,BufNewFile *.md setlocal textwidth=80
+
+  " Automatically wrap at 72 characters and spell check git commit messages
+  autocmd FileType gitcommit setlocal textwidth=72
+  autocmd FileType gitcommit setlocal spell
+
+  " Allow stylesheets to autocomplete hyphenated words
+  autocmd FileType css,scss,sass setlocal iskeyword+=-
+augroup END
 endif
 " }}}
 
@@ -120,6 +172,7 @@ endif
 
 " _. Indent {{{
 if count(g:vimified_packages, 'indent')
+  Bundle 'godlygeek/tabular'
   Bundle 'Yggdroot/indentLine'
   set list lcs=tab:\|\
   let g:indentLine_color_term = 111
@@ -132,7 +185,7 @@ endif
 
 " _. OS {{{
 if count(g:vimified_packages, 'os')
-    Bundle 'zaiste/tmux.vim'
+   "Bundle 'zaiste/tmux.vim'
     Bundle 'benmills/vimux'
     map <Leader>rp :VimuxPromptCommand<CR>
     map <Leader>rl :VimuxRunLastCommand<CR>
@@ -146,10 +199,17 @@ endif
 " _. Coding {{{
 
 if count(g:vimified_packages, 'coding')
+	let is_tmux = $TMUX
+	if is_tmux != ""
+  		autocmd VimEnter * VtrAttachToPane
+	endif
+	set diffopt+=vertical
+	Bundle 'jby/tmux.vim'
     Bundle 'majutsushi/tagbar'
     nmap <leader>t :TagbarToggle<CR>
 
     Bundle 'gregsexton/gitv'
+
 
     Bundle 'joonty/vdebug.git'
 
@@ -171,11 +231,20 @@ if count(g:vimified_packages, 'coding')
     :vmap <leader>f y:let @/=escape(@", '\\[]$^*.')<CR>:set hls<CR>:silent Ggrep -F "<C-R>=escape(@", '\\"#')<CR>"<CR>:ccl<CR>:cw<CR><CR>
 
     Bundle 'scrooloose/syntastic'
+	"configure syntastic syntax checking to check on open as well as save
+  	let g:syntastic_check_on_open=1
+  	let g:syntastic_html_tidy_ignore_errors=[" proprietary attribute \"ng-"]
+    let g:syntastic_eruby_ruby_quiet_messages =
+    \ {"regex": "possibly useless use of a variable in void context"}
+
     let g:syntastic_enable_signs=1
     let g:syntastic_auto_loc_list=1
     let g:syntastic_mode_map = { 'mode': 'active', 'active_filetypes': ['ruby', 'python', ], 'passive_filetypes': ['html', 'css', 'slim'] }
 
-    " --
+    let g:syntastic_error_symbol = "✗"
+    "let g:syntastic_warning_symbol = "<img draggable="false" class="emoji" alt=":warning:" src="https://s0.wp.com/wp-content/mu-plugins/wpcom-smileys/twemoji/2/svg/26a0.svg">"
+    " see :h syntastic-loclist-callback
+
 
     Bundle 'vim-scripts/Reindent'
 
@@ -184,58 +253,70 @@ if count(g:vimified_packages, 'coding')
 
     " Check API docs for current word in Zeal: http://zealdocs.org/
     nnoremap <leader>d :!zeal --query "<cword>"&<CR><CR>
-endif
-" }}}
+  endif
+  " }}}
 
 
 
-" _. Python {{{
-if count(g:vimified_packages, 'python')
+  " _. Python {{{
+  if count(g:vimified_packages, 'python')
     Bundle 'klen/python-mode'
     Bundle 'python.vim'
     Bundle 'python_match.vim'
     Bundle 'pythoncomplete'
     Bundle 'jmcantrell/vim-virtualenv'
-endif
-" }}}
+  endif
+  " }}}
 
-" _. Go {{{
-if count(g:vimified_packages, 'go')
+  " _. Go {{{
+  if count(g:vimified_packages, 'go')
     Bundle 'fatih/vim-go'
     let g:go_disable_autoinstall = 1
-endif
-" }}}
+  endif
+  " }}}
 
-" _. Ruby {{{
-if count(g:vimified_packages, 'ruby')
+  " _. Ruby {{{
+  if count(g:vimified_packages, 'ruby')
     Bundle 'vim-ruby/vim-ruby'
     Bundle 'tpope/vim-rails'
     Bundle 'nelstrom/vim-textobj-rubyblock'
     Bundle 'ecomba/vim-ruby-refactoring'
+    Bundle 'thoughtbot/vim-rspec'
+    Bundle 'keith/rspec.vim'
+    Bundle 'christoomey/vim-tmux-runner'
 
     autocmd FileType ruby,eruby,yaml set tw=80 ai sw=2 sts=2 et
     autocmd FileType ruby,eruby,yaml setlocal foldmethod=manual
     autocmd User Rails set tabstop=2 shiftwidth=2 softtabstop=2 expandtab
-endif
-" }}}
+    if filereadable(expand("./bin/rspec"))
+      let g:rspec_command = "VtrSendCommandToRunner! ./bin/rspec {spec}"
+    else
+      let g:rspec_command = "VtrSendCommandToRunner! rspec {spec}"
+    endif
 
-" _. Clang {{{
-if count(g:vimified_packages, 'clang')
+  endif
+  " }}}
+
+  " _. Clang {{{
+  if count(g:vimified_packages, 'clang')
     Bundle 'Rip-Rip/clang_complete'
     Bundle 'LucHermitte/clang_indexer'
     Bundle 'newclear/lh-vim-lib'
     Bundle 'LucHermitte/vim-clang'
     Bundle 'devx/c.vim'
-endif
-" }}}
+  endif
+  " }}}
 
-" _. HTML {{{
-if count(g:vimified_packages, 'html')
+  " _. HTML {{{
+  if count(g:vimified_packages, 'html')
     Bundle 'tpope/vim-haml'
     Bundle 'juvenn/mustache.vim'
     Bundle 'tpope/vim-markdown'
     Bundle 'digitaltoad/vim-jade'
     Bundle 'slim-template/vim-slim'
+    Bundle 'mattn/emmet-vim'
+
+    let g:html_indent_tags = 'li\|p'
 
     au BufNewFile,BufReadPost *.jade setl shiftwidth=2 tabstop=2 softtabstop=2 expandtab
     au BufNewFile,BufReadPost *.html setl shiftwidth=2 tabstop=2 softtabstop=2 expandtab
@@ -243,38 +324,38 @@ if count(g:vimified_packages, 'html')
     au BufNewFile,BufReadPost *.md set filetype=markdown
 
     let g:markdown_fenced_languages = ['coffee', 'css', 'erb=eruby', 'javascript', 'js=javascript', 'json=javascript', 'ruby', 'sass', 'xml', 'html']
-endif
-" }}}
+  endif
+  " }}}
 
-" _. CSS {{{
-if count(g:vimified_packages, 'css')
+  " _. CSS {{{
+  if count(g:vimified_packages, 'css')
     Bundle 'wavded/vim-stylus'
     Bundle 'lunaru/vim-less'
     nnoremap ,m :w <BAR> !lessc % > %:t:r.css<CR><space>
-endif
-" }}}
+  endif
+  " }}}
 
-" _. JS {{{
-if count(g:vimified_packages, 'js')
+  " _. JS {{{
+  if count(g:vimified_packages, 'js')
     Bundle 'kchmck/vim-coffee-script'
     au BufNewFile,BufReadPost *.coffee setl shiftwidth=2 tabstop=2 softtabstop=2 expandtab
 
     Bundle 'alfredodeza/jacinto.vim'
     au BufNewFile,BufReadPost *.coffee setl foldmethod=indent nofoldenable
     au BufNewFile,BufReadPost *.coffee setl tabstop=2 softtabstop=2 shiftwidth=2 expandtab
-endif
-" }}}
+  endif
+  " }}}
 
-" _. Clojure {{{
-if count(g:vimified_packages, 'clojure')
+  " _. Clojure {{{
+  if count(g:vimified_packages, 'clojure')
     Bundle 'guns/vim-clojure-static'
     Bundle 'tpope/vim-fireplace'
     Bundle 'tpope/vim-classpath'
-endif
-" }}}
+  endif
+  " }}}
 
-" _. Haskell {{{
-if count(g:vimified_packages, 'haskell')
+  " _. Haskell {{{
+  if count(g:vimified_packages, 'haskell')
     Bundle 'Twinside/vim-syntax-haskell-cabal'
     Bundle 'lukerandall/haskellmode-vim'
 
@@ -282,29 +363,29 @@ if count(g:vimified_packages, 'haskell')
 
     let g:ghc = "/usr/local/bin/ghc"
     let g:haddock_browser = "open"
-endif
-" }}}
+  endif
+  " }}}
 
-" _. Elixir {{{
-if count(g:vimified_packages, 'elixir')
+  " _. Elixir {{{
+  if count(g:vimified_packages, 'elixir')
     Bundle 'elixir-lang/vim-elixir'
-endif
-" }}}
+  endif
+  " }}}
 
-" _. Rust {{{
-if count(g:vimified_packages, 'rust')
+  " _. Rust {{{
+  if count(g:vimified_packages, 'rust')
     Bundle 'wting/rust.vim'
-endif
-" }}}
+  endif
+  " }}}
 
-" _. Elm {{{
-if count(g:vimified_packages, 'elm')
+  " _. Elm {{{
+  if count(g:vimified_packages, 'elm')
     Bundle 'lambdatoast/elm.vim'
-endif
-" }}}
+  endif
+  " }}}
 
-" _. Color {{{
-if count(g:vimified_packages, 'color')
+  " _. Color {{{
+  if count(g:vimified_packages, 'color')
     Bundle 'sjl/badwolf'
     Bundle 'altercation/vim-colors-solarized'
     Bundle 'tomasr/molokai'
@@ -314,6 +395,8 @@ if count(g:vimified_packages, 'color')
     Bundle 'Elive/vim-colorscheme-elive'
     Bundle 'zeis/vim-kolor'
     Bundle 'xero/sourcerer.vim'
+    Bundle 'chrisbra/color_highlight'
+
 
     " During installation the molokai colorscheme might not be avalable
     if filereadable(globpath(&rtp, 'colors/molokai.vim'))
@@ -321,364 +404,380 @@ if count(g:vimified_packages, 'color')
     else
       colorscheme default
     endif
-else
+  else
     colorscheme default
-endif
-" }}}
+  endif
+  " }}}
+colorscheme badwolf
+  " }}}
 
-" }}}
+  " General {{{
+  filetype plugin indent on
 
-" General {{{
-filetype plugin indent on
+  syntax on
 
-syntax on
+  " Set 5 lines to the cursor - when moving vertically
+  set scrolloff=0
 
-" Set 5 lines to the cursor - when moving vertically
-set scrolloff=0
+  " It defines where to look for the buffer user demanding (current window, all
+  " windows in other tabs, or nowhere, i.e. open file from scratch every time) and
+  " how to open the buffer (in the new split, tab, or in the current window).
 
-" It defines where to look for the buffer user demanding (current window, all
-" windows in other tabs, or nowhere, i.e. open file from scratch every time) and
-" how to open the buffer (in the new split, tab, or in the current window).
+  " This orders Vim to open the buffer.
+  set switchbuf=useopen
 
-" This orders Vim to open the buffer.
-set switchbuf=useopen
+  " Highlight VCS conflict markers
+  match ErrorMsg '^\(<\|=\|>\)\{7\}\([^=].\+\)\?$'
 
-" Highlight VCS conflict markers
-match ErrorMsg '^\(<\|=\|>\)\{7\}\([^=].\+\)\?$'
+  " }}}
 
-" }}}
+  " Mappings {{{
 
-" Mappings {{{
+  " You want to be part of the gurus? Time to get in serious stuff and stop using
+  " arrow keys.
+  noremap <left> <nop>
+  noremap <up> <nop>
+  noremap <down> <nop>
+  noremap <right> <nop>
 
-" You want to be part of the gurus? Time to get in serious stuff and stop using
-" arrow keys.
-noremap <left> <nop>
-noremap <up> <nop>
-noremap <down> <nop>
-noremap <right> <nop>
+  " Yank from current cursor position to end of line
+  map Y y$
+  " Yank content in OS's clipboard. `o` stands for "OS's Clipoard".
+  vnoremap <leader>yo "*y
+  " Paste content from OS's clipboard
+  nnoremap <leader>po "*p
 
-" Yank from current cursor position to end of line
-map Y y$
-" Yank content in OS's clipboard. `o` stands for "OS's Clipoard".
-vnoremap <leader>yo "*y
-" Paste content from OS's clipboard
-nnoremap <leader>po "*p
+  " clear highlight after search
+  noremap <silent><Leader>/ :nohls<CR>
 
-" clear highlight after search
-noremap <silent><Leader>/ :nohls<CR>
+  " better ESC
+  inoremap <C-k> <Esc>
 
-" better ESC
-inoremap <C-k> <Esc>
+  nmap <silent> <leader>hh :set invhlsearch<CR>
+  nmap <silent> <leader>ll :set invlist<CR>
+  nmap <silent> <leader>nn :set invnumber<CR>
+  nmap <silent> <leader>pp :set invpaste<CR>
+  nmap <silent> <leader>ii :set invrelativenumber<CR>
 
-nmap <silent> <leader>hh :set invhlsearch<CR>
-nmap <silent> <leader>ll :set invlist<CR>
-nmap <silent> <leader>nn :set invnumber<CR>
-nmap <silent> <leader>pp :set invpaste<CR>
-nmap <silent> <leader>ii :set invrelativenumber<CR>
+  " Seriously, guys. It's not like :W is bound to anything anyway.
+  command! W :w
 
-" Seriously, guys. It's not like :W is bound to anything anyway.
-command! W :w
+  " Emacs bindings in command line mode
+  cnoremap <c-a> <home>
+  cnoremap <c-e> <end>
 
-" Emacs bindings in command line mode
-cnoremap <c-a> <home>
-cnoremap <c-e> <end>
+  " Source current line
+  vnoremap <leader>L y:execute @@<cr>
+  " Source visual selection
+  nnoremap <leader>L ^vg_y:execute @@<cr>
 
-" Source current line
-vnoremap <leader>L y:execute @@<cr>
-" Source visual selection
-nnoremap <leader>L ^vg_y:execute @@<cr>
+  " Fast saving and closing current buffer without closing windows displaying the
+  " buffer
+  nmap <leader>wq :w!<cr>:Bclose<cr>
 
-" Fast saving and closing current buffer without closing windows displaying the
-" buffer
-nmap <leader>wq :w!<cr>:Bclose<cr>
+  " }}}
 
-" }}}
+  " . abbrevs {{{
+  "
+  iabbrev z@ oh@zaiste.net
 
-" . abbrevs {{{
-"
-iabbrev z@ oh@zaiste.net
+  " . }}}
 
-" . }}}
+  " Settings {{{
+  "set background=dark
+  set autoread
+  set backspace=indent,eol,start
+  set binary
+  set cinoptions=:0,(s,u0,U1,g0,t0
+  set completeopt=menuone,preview
+  set encoding=utf-8
+  set hidden
+  set history=5000
+  set incsearch
+  set laststatus=2
+  set list
+  set fileencoding=utf-8
+  set nobackup
+  set nowritebackup
+  set ruler         " show the cursor position all the time
+  set hlsearch
+  set autowrite     " Automatically :write before running commands
+  set ignorecase    " Ignore case when searching...
+  set smartcase     " ...unless we type a capital
+  set showmode      "Show current mode down the bottom
 
-" Settings {{{
-set autoread
-set backspace=indent,eol,start
-set binary
-set cinoptions=:0,(s,u0,U1,g0,t0
-set completeopt=menuone,preview
-set encoding=utf-8
-set hidden
-set history=1000
-set incsearch
-set laststatus=2
-set list
+  " Don't redraw while executing macros
+  set nolazyredraw
 
-" Don't redraw while executing macros
-set nolazyredraw
+  " Disable the macvim toolbar
+  set guioptions-=T
 
-" Disable the macvim toolbar
-set guioptions-=T
+  set listchars=tab:»·,eol:¬,extends:❯,precedes:❮,trail:•,nbsp:␣
+  set showbreak=↪
 
-set listchars=tab:▸\ ,eol:¬,extends:❯,precedes:❮,trail:␣
-set showbreak=↪
+  set notimeout
+  set ttimeout
+  set ttimeoutlen=10
 
-set notimeout
-set ttimeout
-set ttimeoutlen=10
+  " _ backups {{{
+  if has('persistent_undo')
+    " undo files
+    exec 'set undodir='.s:dotvim.'/tmp/undo//'
+    set undofile
+    set undolevels=3000
+    set undoreload=10000
+  endif
+  " backups
+  exec 'set backupdir='.s:dotvim.'/tmp/backup//'
+  " swap files
+  exec 'set directory='.s:dotvim.'/tmp/swap//'
+  set backup
+  set noswapfile
+  " _ }}}
 
-" _ backups {{{
-if has('persistent_undo')
-  " undo files
-  exec 'set undodir='.s:dotvim.'/tmp/undo//'
-  set undofile
-  set undolevels=3000
-  set undoreload=10000
-endif
-" backups
-exec 'set backupdir='.s:dotvim.'/tmp/backup//'
-" swap files
-exec 'set directory='.s:dotvim.'/tmp/swap//'
-set backup
-set noswapfile
-" _ }}}
+  set modelines=0
+  set noeol
+  if exists('+relativenumber')
+    set relativenumber
+  endif
+  set numberwidth=3
+  set winwidth=83
+  set ruler
+  if executable('zsh')
+    set shell=zsh\ -l
+  endif
+  set showcmd
 
-set modelines=0
-set noeol
-if exists('+relativenumber')
-  set relativenumber
-endif
-set numberwidth=3
-set winwidth=83
-set ruler
-if executable('zsh')
-  set shell=zsh\ -l
-endif
-set showcmd
+  set exrc
+  set secure
 
-set exrc
-set secure
+  set matchtime=2
 
-set matchtime=2
+  set completeopt=longest,menuone,preview
 
-set completeopt=longest,menuone,preview
+  " White characters {{{
+  set autoindent
+  set tabstop=2
+  set softtabstop=2
+  set shiftround
+  set textwidth=80
+  set shiftwidth=2
+  set expandtab
+  set nowrap
+  set formatoptions=qrn1
+  if exists('+colorcolumn')
+    set colorcolumn=+1
+  endif
+  set cpo+=J
+  " }}}
 
-" White characters {{{
-set autoindent
-set tabstop=4
-set softtabstop=4
-set textwidth=80
-set shiftwidth=4
-set expandtab
-set wrap
-set formatoptions=qrn1
-if exists('+colorcolumn')
-  set colorcolumn=+1
-endif
-set cpo+=J
-" }}}
+  set visualbell
 
-set visualbell
+  set wildignore=.svn,CVS,.git,.hg,*.o,*.a,*.class,*.mo,*.la,*.so,*.obj,*.swp,*.jpg,*.png,*.xpm,*.gif,.DS_Store,*.aux,*.out,*.toc,tmp,*.scssc
+  set wildmenu
 
-set wildignore=.svn,CVS,.git,.hg,*.o,*.a,*.class,*.mo,*.la,*.so,*.obj,*.swp,*.jpg,*.png,*.xpm,*.gif,.DS_Store,*.aux,*.out,*.toc,tmp,*.scssc
-set wildmenu
+  set dictionary=/usr/share/dict/words
+  " }}}
 
-set dictionary=/usr/share/dict/words
-" }}}
+  " Triggers {{{
 
-" Triggers {{{
+  " Save when losing focus
+  au FocusLost    * :silent! wall
+  "
+  " When vimrc is edited, reload it
+  autocmd! BufWritePost vimrc source $MYVIMRC
 
-" Save when losing focus
-au FocusLost    * :silent! wall
-"
-" When vimrc is edited, reload it
-autocmd! BufWritePost vimrc source $MYVIMRC
+  " }}}
 
-" }}}
-
-" Cursorline {{{
-" Only show cursorline in the current window and in normal mode.
-augroup cline
+  " Cursorline {{{
+  " Only show cursorline in the current window and in normal mode.
+  augroup cline
     au!
     au WinLeave * set nocursorline
     au WinEnter * set cursorline
     au InsertEnter * set nocursorline
     au InsertLeave * set cursorline
-augroup END
-" }}}
+  augroup END
+  " }}}
 
-" Trailing whitespace {{{
-" Only shown when not in insert mode so I don't go insane.
-augroup trailing
+  " Trailing whitespace {{{
+  " Only shown when not in insert mode so I don't go insane.
+  augroup trailing
     au!
     au InsertEnter * :set listchars-=trail:␣
     au InsertLeave * :set listchars+=trail:␣
-augroup END
+  augroup END
 
-" Remove trailing whitespaces when saving
-" Wanna know more? http://vim.wikia.com/wiki/Remove_unwanted_spaces
-" If you want to remove trailing spaces when you want, so not automatically,
-" see
-" http://vim.wikia.com/wiki/Remove_unwanted_spaces#Display_or_remove_unwanted_whitespace_with_a_script.
-autocmd BufWritePre * :%s/\s\+$//e
+  " Remove trailing whitespaces when saving
+  " Wanna know more? http://vim.wikia.com/wiki/Remove_unwanted_spaces
+  " If you want to remove trailing spaces when you want, so not automatically,
+  " see
+  " http://vim.wikia.com/wiki/Remove_unwanted_spaces#Display_or_remove_unwanted_whitespace_with_a_script.
+  autocmd BufWritePre * :%s/\s\+$//e
 
-" }}}
+  " }}}
 
-" . searching {{{
+  " . searching {{{
 
-" sane regexes
-nnoremap / /\v
-vnoremap / /\v
+  " sane regexes
+  nnoremap / /\v
+  vnoremap / /\v
 
-set ignorecase
-set smartcase
-set showmatch
-set gdefault
-set hlsearch
+  set ignorecase
+  set smartcase
+  set showmatch
+  set gdefault
+  set hlsearch
 
-" clear search matching
-noremap <leader><space> :noh<cr>:call clearmatches()<cr>
+  " clear search matching
+  noremap <leader><space> :noh<cr>:call clearmatches()<cr>
 
-" Don't jump when using * for search
-nnoremap * *<c-o>
+  " Don't jump when using * for search
+  nnoremap * *<c-o>
 
-" Keep search matches in the middle of the window.
-nnoremap n nzzzv
-nnoremap N Nzzzv
+  " Keep search matches in the middle of the window.
+  nnoremap n nzzzv
+  nnoremap N Nzzzv
 
-" Same when jumping around
-nnoremap g; g;zz
-nnoremap g, g,zz
+  " Same when jumping around
+  nnoremap g; g;zz
+  nnoremap g, g,zz
 
-" Open a Quickfix window for the last search.
-nnoremap <silent> <leader>? :execute 'vimgrep /'.@/.'/g %'<CR>:copen<CR>
+  " Open a Quickfix window for the last search.
+  nnoremap <silent> <leader>? :execute 'vimgrep /'.@/.'/g %'<CR>:copen<CR>
 
-" Highlight word {{{
+  " Highlight word {{{
 
-nnoremap <silent> <leader>hh :execute 'match InterestingWord1 /\<<c-r><c-w>\>/'<cr>
-nnoremap <silent> <leader>h1 :execute 'match InterestingWord1 /\<<c-r><c-w>\>/'<cr>
-nnoremap <silent> <leader>h2 :execute '2match InterestingWord2 /\<<c-r><c-w>\>/'<cr>
-nnoremap <silent> <leader>h3 :execute '3match InterestingWord3 /\<<c-r><c-w>\>/'<cr>
+  nnoremap <silent> <leader>hh :execute 'match InterestingWord1 /\<<c-r><c-w>\>/'<cr>
+  nnoremap <silent> <leader>h1 :execute 'match InterestingWord1 /\<<c-r><c-w>\>/'<cr>
+  nnoremap <silent> <leader>h2 :execute '2match InterestingWord2 /\<<c-r><c-w>\>/'<cr>
+  nnoremap <silent> <leader>h3 :execute '3match InterestingWord3 /\<<c-r><c-w>\>/'<cr>
 
-" }}}
+  " }}}
 
-" }}}
+  " }}}
 
-" Navigation & UI {{{
+  " Navigation & UI {{{
 
-" more natural movement with wrap on
-nnoremap j gj
-nnoremap k gk
-vnoremap j gj
-vnoremap k gk
+  " more natural movement with wrap on
+  nnoremap j gj
+  nnoremap k gk
+  vnoremap j gj
+  vnoremap k gk
 
-" Easy splitted window navigation
-noremap <C-h>  <C-w>h
-noremap <C-j>  <C-w>j
-noremap <C-k>  <C-w>k
-noremap <C-l>  <C-w>l
+  " Easy splitted window navigation
+  noremap <C-h>  <C-w>h
+  noremap <C-j>  <C-w>j
+  noremap <C-k>  <C-w>k
+  noremap <C-l>  <C-w>l
 
-" Easy buffer navigation
-noremap <leader>bp :bprevious<cr>
-noremap <leader>bn :bnext<cr>
+  " Easy buffer navigation
+  noremap <leader>bp :bprevious<cr>
+  noremap <leader>bn :bnext<cr>
 
-" Splits ,v and ,h to open new splits (vertical and horizontal)
-nnoremap <leader>v <C-w>v<C-w>l
-nnoremap <leader>h <C-w>s<C-w>j
+  " Splits ,v and ,h to open new splits (vertical and horizontal)
+  nnoremap vv <C-w>v<C-w>l
+  nnoremap ss <C-w>s<C-w>j
 
-" Reselect visual block after indent/outdent
-vnoremap < <gv
-vnoremap > >gv
+  " Reselect visual block after indent/outdent
+  vnoremap < <gv
+  vnoremap > >gv
 
-" Bubbling lines
-nmap <C-Up> [e
-nmap <C-Down> ]e
-vmap <C-Up> [egv
-vmap <C-Down> ]egv
+  " Bubbling lines
+  nmap <C-Up> [e
+  nmap <C-Down> ]e
+  vmap <C-Up> [egv
+  vmap <C-Down> ]egv
 
-nmap <tab> :NERDTreeToggle<cr>
+  "NerdTree
+  nmap <tab> :NERDTreeToggle<cr>
 
-" }}}
+  " }}}
 
-" . folding {{{
+  " . folding {{{
 
-set foldlevelstart=0
-set foldmethod=syntax
+  set foldlevelstart=0
+  set foldmethod=syntax
 
-" Space to toggle folds.
-nnoremap <space> za
-vnoremap <space> za
+  " Space to toggle folds.
+  nnoremap <space> za
+  vnoremap <space> za
 
-" Make zO recursively open whatever top level fold we're in, no matter where the
-" cursor happens to be.
-nnoremap zO zCzO
+  " Make zO recursively open whatever top level fold we're in, no matter where the
+  " cursor happens to be.
+  nnoremap zO zCzO
 
-" Use ,z to "focus" the current fold.
-nnoremap <leader>z zMzvzz
+  " Use ,z to "focus" the current fold.
+  nnoremap <leader>z zMzvzz
 
-" }}}
+  " }}}
 
-" Quick editing {{{
+  " Quick editing {{{
 
-nnoremap <leader>ev <C-w>s<C-w>j:e $MYVIMRC<cr>
-exec 'nnoremap <leader>es <C-w>s<C-w>j:e '.s:dotvim.'/snippets/<cr>'
-nnoremap <leader>eg <C-w>s<C-w>j:e ~/.gitconfig<cr>
-nnoremap <leader>ez <C-w>s<C-w>j:e ~/.zshrc<cr>
-nnoremap <leader>et <C-w>s<C-w>j:e ~/.tmux.conf<cr>
+  nnoremap <leader>ev <C-w>s<C-w>j:e $MYVIMRC<cr>
+  exec 'nnoremap <leader>es <C-w>s<C-w>j:e '.s:dotvim.'/snippets/<cr>'
+  nnoremap <leader>eg <C-w>s<C-w>j:e ~/.gitconfig<cr>
+  nnoremap <leader>ez <C-w>s<C-w>j:e ~/.zshrc<cr>
+  nnoremap <leader>et <C-w>s<C-w>j:e ~/.tmux.conf<cr>
 
-" --------------------
+  " --------------------
 
-set ofu=syntaxcomplete#Complete
-let g:rubycomplete_buffer_loading = 0
-let g:rubycomplete_classes_in_global = 1
+  set ofu=syntaxcomplete#Complete
+  let g:rubycomplete_buffer_loading = 0
+  let g:rubycomplete_classes_in_global = 1
 
-" showmarks
-let g:showmarks_enable = 1
-hi! link ShowMarksHLl LineNr
-hi! link ShowMarksHLu LineNr
-hi! link ShowMarksHLo LineNr
-hi! link ShowMarksHLm LineNr
+  " showmarks
+  let g:showmarks_enable = 1
+  hi! link ShowMarksHLl LineNr
+  hi! link ShowMarksHLu LineNr
+  hi! link ShowMarksHLo LineNr
+  hi! link ShowMarksHLm LineNr
 
-" }}}
+  " }}}
 
-" _ Vim {{{
-augroup ft_vim
+  " _ Vim {{{
+  augroup ft_vim
     au!
 
     au FileType vim setlocal foldmethod=marker
     au FileType help setlocal textwidth=78
     au BufWinEnter *.txt if &ft == 'help' | wincmd L | endif
-augroup END
-" }}}
+  augroup END
+  " }}}
 
-" EXTENSIONS {{{
+  " EXTENSIONS {{{
 
-" _. Scratch {{{
-exec ':so '.s:dotvim.'/functions/scratch_toggle.vim'
-" }}}
+  " _. Scratch {{{
+  exec ':so '.s:dotvim.'/functions/scratch_toggle.vim'
+  " }}}
 
-" _. Buffer Handling {{{
-exec ':so '.s:dotvim.'/functions/buffer_handling.vim'
-" }}}
+  " _. Buffer Handling {{{
+  exec ':so '.s:dotvim.'/functions/buffer_handling.vim'
+  " }}}
 
-" _. Tab {{{
-exec ':so '.s:dotvim.'/functions/insert_tab_wrapper.vim'
-" }}}
+  " _. Tab {{{
+  exec ':so '.s:dotvim.'/functions/insert_tab_wrapper.vim'
+  " }}}
 
-" _. Text Folding {{{
-exec ':so '.s:dotvim.'/functions/my_fold_text.vim'
-" }}}
+  " _. Text Folding {{{
+  exec ':so '.s:dotvim.'/functions/my_fold_text.vim'
+  " }}}
 
-" _. Gist {{{
-" Send visual selection to gist.github.com as a private, filetyped Gist
-" Requires the gist command line too (brew install gist)
-vnoremap <leader>G :w !gist -p -t %:e \| pbcopy<cr>
-" }}}
+  " _. Gist {{{
+  " Send visual selection to gist.github.com as a private, filetyped Gist
+  " Requires the gist command line too (brew install gist)
+  vnoremap <leader>G :w !gist -p -t %:e \| pbcopy<cr>
+  " }}}
 
-" }}}
+  " }}}
 
-" Load addidional configuration (ie to overwrite shorcuts) {{{
-let s:afterrc = expand(s:dotvim . '/after.vimrc')
-if filereadable(s:afterrc)
+  " Load addidional configuration (ie to overwrite shorcuts) {{{
+  let s:afterrc = expand(s:dotvim . '/after.vimrc')
+  if filereadable(s:afterrc)
     exec ':so ' . s:afterrc
-endif
-" }}}
+  endif
+
+  exec ':so '.s:dotvim.'/settings.vim'
+
+  " }}}
+" see :h syntastic-loclist-callback
