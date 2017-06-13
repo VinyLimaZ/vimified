@@ -8,7 +8,9 @@
 set nocompatible
 filetype on
 filetype off
-
+set shell=/bin/bash
+set tsl=0
+set rtp+=~/.vim/bundle/vundle/
 let s:dotvim = fnamemodify(globpath(&rtp, 'vimified.dir'), ':p:h')
 
 " Utils {{{
@@ -41,7 +43,7 @@ endif " }}}
 
 " VUNDLE {{{
 let s:bundle_path=s:dotvim."/bundle/"
-execute "set rtp+=".s:bundle_path."vundle/"
+execute "set rtp+=".s:bundle_path."Vundle.vim/"
 call vundle#rc(s:bundle_path)
 
 Bundle 'gmarik/vundle'
@@ -76,14 +78,14 @@ if count(g:vimified_packages, 'general')
 
 	  " Use ag in CtrlP for listing files. Lightning fast and respects .gitignore
 	  " let g:ctrlp_user_command = 'ag %s -l --nocolor --hidden -g ""'
-	  let g:ctrlp_user_command =
-		  \ 'ag %s --files-with-matches -g "" --ignore "\.git$\|\.hg$\|\.svn$"'
+	  "let g:ctrlp_user_command =
+		"  \ 'ag %s --files-with-matches -g "" --ignore "\.git$\|\.hg$\|\.svn$"'
 
 	  " ag is fast enough that CtrlP doesn't need to cache
-	  let g:ctrlp_use_caching = 0
+	  "let g:ctrlp_use_caching = 0
 	endif
 	" Default to filename searches
-	let g:ctrlp_by_filename = 1
+	"let g:ctrlp_by_filename = 1
 
     Bundle 'matthias-guenther/hammer.vim'
     nmap <leader>p :Hammer<cr>
@@ -571,7 +573,7 @@ colorscheme badwolf
   set cpo+=J
   " }}}
 
-  set visualbell
+  "set visualbell
 
   set wildignore=.svn,CVS,.git,.hg,*.o,*.a,*.class,*.mo,*.la,*.so,*.obj,*.swp,*.jpg,*.png,*.xpm,*.gif,.DS_Store,*.aux,*.out,*.toc,tmp,*.scssc
   set wildmenu
