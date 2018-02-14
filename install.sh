@@ -46,9 +46,9 @@ if [ ! -d "bundle" ]; then
     mkdir -p tmp/backup tmp/swap tmp/undo
 fi
 
-if [ ! -d "bundle/vundle" ]; then
+if [ ! -d "bundle/Vundle.vim" ]; then
     echo "Then, we install Vundle (https://github.com/gmarik/vundle)."
-    git clone https://github.com/gmarik/vundle.git bundle/vundle
+    git clone https://github.com/VundleVim/Vundle.vim.git bundle/Vundle.vim
 fi
 
 if [ ! -f local.vimrc ]; then
